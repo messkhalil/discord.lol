@@ -5,53 +5,82 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>لوحة تحكم بوت ديسكورد (تجريبي)</title>
   <style>
-    body { font-family: Arial, sans-serif; direction: rtl; padding: 24px; background:#0f1724;color:#e6eef8 }
-    .card { background:#0b1220;padding:16px;border-radius:8px;margin-bottom:12px }
-    input,button,textarea { width:100%;padding:8px;margin-top:6px;border-radius:6px;border:1px solid #233040;background:#081019;color:#e6eef8 }
-    button { cursor:pointer }
-    .list-item{padding:8px;border-bottom:1px solid #122233}
+    :root{--bg:#071021;--panel:#0b1220;--muted:#91a6b8;--accent:#67e8f9}
+    body { font-family: Inter, system-ui, Arial, sans-serif; direction: rtl; padding: 32px; background:var(--bg); color:#e6eef8; }
+    h2 { text-align: right; margin-bottom:18px; font-weight:600 }
+    .container{max-width:980px;margin:0 auto}
+    .card { background:var(--panel); padding:20px;border-radius:12px;margin-bottom:18px; box-shadow: 0 6px 18px rgba(2,6,23,0.6) }
+    label{display:block;color:var(--muted);font-size:13px;margin-top:8px}
+    input,button,textarea { width:100%;padding:10px;margin-top:8px;border-radius:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:#e6eef8 }
+    input::placeholder{color:rgba(230,238,248,0.35)}
+    .row{display:flex;gap:12px}
+    .btn { background:linear-gradient(90deg,#0ea5a2,#06b6d4); color:#021019; font-weight:700; border:none; padding:10px 14px; border-radius:8px }
+    .list-item{padding:10px;border-radius:8px;border:1px solid rgba(255,255,255,0.03);margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+    .muted{color:var(--muted)}
+    .error{color:#ffd6d6;background:rgba(255,20,20,0.04);padding:8px;border-radius:6px}
   </style>
 </head>
 <body>
-  <h2>لوحة تحكم بوت ديسكورد — تجريبي</h2>
+  <div class="container">
+    <h2>لوحة تحكم بوت ديسكورد — تجريبي</h2>
 
-  <div class="card">
-    <strong>أضف بوت (تخزين توكن مشفّر)</strong>
-    <label>اسم البوت</label>
-    <input id="botName" placeholder="مثال: MyBot" />
-    <label>Token</label>
-    <input id="botToken" placeholder="ضع التوكن هنا" />
-    <button id="addBtn">أضف البوت</button>
-    <div id="addResult" style="margin-top:8px;color:#cfeadf"></div>
-  </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <strong>أضف بوت (تخزين توكن مشفّر)</strong>
+        <span class="muted">مثال آمن: لا تعرض التوكن علنًا</span>
+      </div>
+      <label>اسم البوت</label>
+      <input id="botName" placeholder="مثال: MyBot" />
+      <label>Token</label>
+      <input id="botToken" placeholder="ضع التوكن هنا" />
+      <div style="margin-top:12px;display:flex;gap:12px">
+        <button id="addBtn" class="btn">أضف البوت</button>
+        <button id="refreshBtn" class="btn" style="background:transparent;border:1px solid rgba(255,255,255,0.05);color:var(--muted)">تحديث القائمة</button>
+      </div>
+      <div id="addResult" style="margin-top:12px"></div>
+    </div>
 
-  <div class="card">
-    <strong>قائمة البوتات المسجلة</strong>
-    <div id="botsList">جاري التحميل...</div>
+    <div class="card">
+      <strong>قائمة البوتات المسجلة</strong>
+      <div id="botsList" style="margin-top:12px">جاري التحميل...</div>
+    </div>
   </div>
 
   <script>
     async function loadBots(){
-      const res = await fetch('/api/bots');
-      const data = await res.json();
       const el = document.getElementById('botsList');
-      if (!Array.isArray(data)) { el.innerText = JSON.stringify(data); return }
-      if (data.length===0) el.innerText = 'لا يوجد بوتات مسجلة بعد.';
-      else el.innerHTML = data.map(b=>`<div class="list-item">${b.id} — ${b.name}</div>`).join('');
+      el.innerHTML = 'تحميل...';
+      try{
+        const res = await fetch('/api/bots');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data && data.error ? data.error : JSON.stringify(data));
+        if (!Array.isArray(data) || data.length===0) {
+          el.innerHTML = '<div class="muted">لا يوجد بوتات مسجلة بعد.</div>';
+          return;
+        }
+        el.innerHTML = data.map(b=>`<div class="list-item"><div><strong>${b.name}</strong><div class="muted">#${b.id} — ${new Date(b.created_at).toLocaleString()}</div></div><div><button class="btn" onclick="copyId(${b.id})" style="background:transparent;color:var(--muted);border:none">نسخ</button></div></div>`).join('');
+      }catch(err){
+        document.getElementById('botsList').innerHTML = `<div class="error">خطأ: ${err.message}</div>`;
+      }
     }
+
+    function copyId(id){ navigator.clipboard?.writeText(String(id)); }
 
     document.getElementById('addBtn').addEventListener('click', async ()=>{
       const name = document.getElementById('botName').value.trim();
       const token = document.getElementById('botToken').value.trim();
       const out = document.getElementById('addResult');
-      if (!name||!token){ out.innerText='الاسم والتوكن مطلوبان'; return }
+      out.innerHTML = '';
+      if (!name||!token){ out.innerHTML = '<div class="error">الاسم والتوكن مطلوبان</div>'; return }
       try{
         const res = await fetch('/api/bots',{ method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name, token }) });
         const json = await res.json();
-        if (res.status===201) { out.innerText = 'تمت إضافة البوت بنجاح'; document.getElementById('botName').value=''; document.getElementById('botToken').value=''; loadBots(); }
-        else out.innerText = JSON.stringify(json);
-      }catch(e){ out.innerText = e.message }
+        if (res.status===201) { out.innerHTML = '<div style="color:#b7ffd8">تمت إضافة البوت بنجاح</div>'; document.getElementById('botName').value=''; document.getElementById('botToken').value=''; loadBots(); }
+        else out.innerHTML = `<div class="error">${json && json.error ? json.error : JSON.stringify(json)}</div>`;
+      }catch(e){ out.innerHTML = `<div class="error">${e.message}</div>` }
     });
+
+    document.getElementById('refreshBtn').addEventListener('click', loadBots);
 
     loadBots();
   </script>
