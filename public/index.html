@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ar">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>لوحة تحكم بوت ديسكورد (تجريبي)</title>
+  <style>
+    body { font-family: Arial, sans-serif; direction: rtl; padding: 24px; background:#0f1724;color:#e6eef8 }
+    .card { background:#0b1220;padding:16px;border-radius:8px;margin-bottom:12px }
+    input,button,textarea { width:100%;padding:8px;margin-top:6px;border-radius:6px;border:1px solid #233040;background:#081019;color:#e6eef8 }
+    button { cursor:pointer }
+    .list-item{padding:8px;border-bottom:1px solid #122233}
+  </style>
+</head>
+<body>
+  <h2>لوحة تحكم بوت ديسكورد — تجريبي</h2>
+
+  <div class="card">
+    <strong>أضف بوت (تخزين توكن مشفّر)</strong>
+    <label>اسم البوت</label>
+    <input id="botName" placeholder="مثال: MyBot" />
+    <label>Token</label>
+    <input id="botToken" placeholder="ضع التوكن هنا" />
+    <button id="addBtn">أضف البوت</button>
+    <div id="addResult" style="margin-top:8px;color:#cfeadf"></div>
+  </div>
+
+  <div class="card">
+    <strong>قائمة البوتات المسجلة</strong>
+    <div id="botsList">جاري التحميل...</div>
+  </div>
+
+  <script>
+    async function loadBots(){
+      const res = await fetch('/api/bots');
+      const data = await res.json();
+      const el = document.getElementById('botsList');
+      if (!Array.isArray(data)) { el.innerText = JSON.stringify(data); return }
+      if (data.length===0) el.innerText = 'لا يوجد بوتات مسجلة بعد.';
+      else el.innerHTML = data.map(b=>`<div class="list-item">${b.id} — ${b.name}</div>`).join('');
+    }
+
+    document.getElementById('addBtn').addEventListener('click', async ()=>{
+      const name = document.getElementById('botName').value.trim();
+      const token = document.getElementById('botToken').value.trim();
+      const out = document.getElementById('addResult');
+      if (!name||!token){ out.innerText='الاسم والتوكن مطلوبان'; return }
+      try{
+        const res = await fetch('/api/bots',{ method: 'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ name, token }) });
+        const json = await res.json();
+        if (res.status===201) { out.innerText = 'تمت إضافة البوت بنجاح'; document.getElementById('botName').value=''; document.getElementById('botToken').value=''; loadBots(); }
+        else out.innerText = JSON.stringify(json);
+      }catch(e){ out.innerText = e.message }
+    });
+
+    loadBots();
+  </script>
+</body>
+</html>
